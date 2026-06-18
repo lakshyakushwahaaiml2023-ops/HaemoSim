@@ -1,0 +1,10 @@
+numpy
+scipy
+jax
+jaxlib
+h5py
+torch
+torch-geometric
+torchdiffeq
+matplotlib
+pytest
