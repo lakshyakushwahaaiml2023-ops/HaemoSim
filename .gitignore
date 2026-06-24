@@ -1,41 +1,16 @@
-# Python
+# Python cache
 __pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-*.so
-.Python
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
+*.pyc
 
-# Virtual environments
-.venv/
+# Dataset (Too large for GitHub)
+dataset.npz
+
+# Virtual Environment
 venv/
-env/
+.env
 
-# Jupyter
-.ipynb_checkpoints/
-
-# Node
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# OS / Editor
-.DS_Store
-Thumbs.db
+# Pytest & IDE
+.pytest_cache/
 .vscode/
-
-# Local agent/editor settings
-.claude/
-
-# Build / artifacts
-dist/
-build/
-*.log
-
-# Large data artifacts
-*.h5
-*.hdf5
+.idea/
+.DS_Store

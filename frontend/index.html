@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HaemoSim - Hemodynamics Research Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        :root {
+            --bg-dark: #080b11;
+            --panel-bg: rgba(13, 20, 35, 0.75);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.4);
+            --accent-green: #10b981;
+            --accent-red: #f87171;
+            --accent-blue: #60a5fa;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: grid;
+            grid-template-rows: 60px 1fr 30px;
+        }
+
+        /* Header */
+        header {
+            background: var(--panel-bg);
+            border-bottom: 1px solid var(--panel-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, var(--primary), var(--accent-green));
+            border-radius: 6px;
+            box-shadow: 0 0 12px var(--primary-glow);
+        }
+
+        .logo-text {
+            font-weight: 700;
+            font-size: 1.1rem;
+            letter-spacing: 0.5px;
+        }
+
+        .disclaimer-badge {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            color: var(--warning);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+
+        /* Layout Grid */
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 320px 1fr 320px;
+            gap: 16px;
+            padding: 16px;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* Sidebar & Panel Design */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+            height: 100%;
+        }
+
+        .glass-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .glass-panel h2 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #ffffff;
+            border-left: 3px solid var(--primary);
+            padding-left: 8px;
+        }
+
+        /* Input Styles */
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .control-group label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .control-group label span.val-label {
+            color: var(--primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+        }
+
+        select, input[type="range"] {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            color: var(--text-main);
+            padding: 8px;
+            font-size: 0.8rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        select:focus {
+            border-color: var(--primary);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 8px var(--primary);
+            cursor: pointer;
+        }
+
+        /* Engine Toggle Switches */
+        .toggle-container {
+            display: flex;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 8px;
+            border: 1px solid var(--panel-border);
+            overflow: hidden;
+            padding: 3px;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            padding: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .toggle-btn.active {
+            background: var(--primary);
+            color: #ffffff;
+            box-shadow: 0 2px 8px var(--primary-glow);
+        }
+
+        /* Main Viewport Workspace */
+        .workspace {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .workspace-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(13, 20, 35, 0.4);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 6px 12px;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 6px 14px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .tab-btn:hover:not(.active) {
+            color: white;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            height: 100%;
+        }
+
+        .comp-col {
+            background: rgba(255, 255, 255, 0.015);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .comp-col-header {
+            font-size: 0.8rem;
+            font-weight: 700;
+            padding: 6px;
+            border-radius: 5px;
+            text-align: center;
+            color: white;
+        }
+
+        .comp-col-header.healthy {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.4);
+        }
+
+        .comp-col-header.stenosis {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }
+
+        .comp-col-header.aneurysm {
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+        }
+
+        .comp-col-header.tandem {
+            background: rgba(248, 113, 113, 0.15);
+            border: 1px solid rgba(248, 113, 113, 0.4);
+        }
+
+        .comp-metric-card {
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid rgba(255, 255, 255, 0.02);
+            border-radius: 5px;
+            padding: 6px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+
+        .comp-metric-card .label {
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+
+        .comp-metric-card .value {
+            font-size: 0.8rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            color: white;
+        }
+
+        .canvas-container {
+            position: relative;
+            background: rgba(7, 10, 17, 0.9);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
+        }
+
+        #three-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .canvas-legend {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            pointer-events: none;
+        }
+
+        .legend-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        /* Plots Panel */
+        .plots-panel {
+            grid-row: 2;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .plot-box {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .plot-canvas {
+            width: 100%;
+            height: 120px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 6px;
+        }
+
+        /* Metric Widgets */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .metric-widget {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .metric-widget span.label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+
+        .metric-widget span.value {
+            font-size: 1.15rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        /* Benchmark Table styles */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.72rem;
+            text-align: left;
+        }
+
+        th {
+            color: var(--text-muted);
+            font-weight: 600;
+            padding: 6px 4px;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        td {
+            padding: 6px 4px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--panel-bg);
+            border-top: 1px solid var(--panel-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="logo">
+            <div class="logo-icon"></div>
+            <div class="logo-text">HaemoSim Dashboard</div>
+        </div>
+        <div class="disclaimer-badge">
+            ⚠️ ACADEMIC SIMULATION BENCHMARK — NOT FOR CLINICAL USE
+        </div>
+    </header>
+
+    <!-- Dashboard Container -->
+    <div class="dashboard-container">
+        <!-- Left Sidebar: Controls -->
+        <aside class="sidebar">
+            <div class="glass-panel">
+                <h2>Simulation Engine</h2>
+                <div class="toggle-container">
+                    <button id="btn-cfd" class="toggle-btn active" onclick="setEngineMode('cfd')">CFD Solver</button>
+                    <button id="btn-pinn" class="toggle-btn" onclick="setEngineMode('pinn')">PINN Surrogate</button>
+                    <button id="btn-hybrid" class="toggle-btn" onclick="setEngineMode('hybrid')">Hybrid Cycle</button>
+                </div>
+                <div style="font-size: 0.7rem; color: var(--text-muted); line-height: 1.4;">
+                    Switch between the traditional numerical finite difference solver and the physics-informed neural network surrogate model.
+                </div>
+            </div>
+
+            <div class="glass-panel">
+                <h2>Vessel Parameters</h2>
+                <!-- Vessel Type -->
+                <div class="control-group">
+                    <label>Vessel Profile</label>
+                    <select id="select-vessel" onchange="configureSim()">
+                        <option value="healthy">Healthy Artery (4mm constant)</option>
+                        <option value="stenosis" selected>Single Stenosis (Bump Narrowing)</option>
+                        <option value="aneurysm">Saccular Aneurysm (Widening)</option>
+                        <option value="tandem_stenosis">Tandem Stenosis (Series bumps)</option>
+                    </select>
+                </div>
+
+                <!-- Severity / Dilation -->
+                <div class="control-group" id="severity-container">
+                    <label>Stenosis Severity <span class="val-label" id="val-severity">60%</span></label>
+                    <input type="range" id="input-severity" min="0.0" max="0.75" step="0.05" value="0.60" oninput="updateSeverityLabel(); configureSim()">
+                </div>
+
+                <!-- Heart Rate -->
+                <div class="control-group">
+                    <label>Heart Rate <span class="val-label" id="val-heartrate">72 BPM</span></label>
+                    <input type="range" id="input-heartrate" min="50" max="100" step="1" value="72" oninput="updateHeartrateLabel(); configureSim()">
+                </div>
+            </div>
+
+            <div class="glass-panel">
+                <h2>Vessel Metrics</h2>
+                <div class="metrics-grid">
+                    <div class="metric-widget">
+                        <span class="label">Diam Stenosis</span>
+                        <span class="value" id="metric-diam-sten">60.0%</span>
+                    </div>
+                    <div class="metric-widget">
+                        <span class="label">Area Stenosis</span>
+                        <span class="value" id="metric-area-sten">84.0%</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="workspace">
+            <!-- Tab Header -->
+            <div class="workspace-header">
+                <div class="tab-buttons">
+                    <button id="tab-sim" class="tab-btn active" onclick="switchWorkspaceTab('sim')">3D Live Simulation</button>
+                    <button id="tab-compare" class="tab-btn" onclick="switchWorkspaceTab('compare')">Cohort Comparison Profile</button>
+                </div>
+            </div>
+
+            <!-- View 1: Live Simulation -->
+            <div id="sim-view" style="display: grid; grid-template-rows: 1fr 180px; gap: 16px; height: 100%; overflow: hidden;">
+                <!-- Three.js Viewport -->
+                <div class="canvas-container" style="height: 100%;">
+                    <div id="three-canvas"></div>
+                    <!-- Legend -->
+                    <div class="canvas-legend">
+                        <div class="legend-row">
+                            <div class="legend-color" style="background: var(--primary);"></div>
+                            <span>Forward Flow (u > 0)</span>
+                        </div>
+                        <div class="legend-row">
+                            <div class="legend-color" style="background: var(--accent-red);"></div>
+                            <span>Recirculation (u < 0)</span>
+                        </div>
+                        <div class="legend-row">
+                            <div class="legend-color" style="background: #ffffff; border: 1.5px solid var(--panel-border);"></div>
+                            <span>Flow Streamlines</span>
+                        </div>
+                        <div id="legend-mode" style="margin-top: 4px; font-weight: bold; color: white;">Mode: CFD</div>
+                    </div>
+                </div>
+
+                <!-- Canvas Plots -->
+                <div class="plots-panel">
+                    <div class="plot-box">
+                        <canvas id="canvas-wss" class="plot-canvas"></canvas>
+                    </div>
+                    <div class="plot-box">
+                        <canvas id="canvas-osi" class="plot-canvas"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View 2: Cohort Comparison -->
+            <div id="compare-panel" class="glass-panel" style="display: none; height: 100%; overflow-y: auto; gap: 16px;">
+                <h2>Cohort Hemodynamic Comparison</h2>
+                <div style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4;">
+                    Side-by-side clinical metrics comparison across four arterial configurations under pulsatile inflow (72 BPM, 0.1 m/s mean inlet, 4mm baseline diameter).
+                </div>
+                <div class="comparison-grid">
+                    <!-- Healthy Column -->
+                    <div class="comp-col">
+                        <div class="comp-col-header healthy">Healthy Artery</div>
+                        <div class="comp-metric-card">
+                            <span class="label">Peak Velocity</span>
+                            <span class="value">0.15 m/s</span>
+                        </div>
+                        <div class="comp-metric-card">
+                            <span class="label">Max WSS (CFD/PINN)</span>
+                            <span class="value">0.26 / 0.25 Pa</span>
+                        </div>
+                        <div class="comp-metric-card">
+                            <span class="label">Peak OSI (CFD/PINN)</span>
+                            <span class="value">0.00 / 0.00</span>
+                        </div>
+                        <div class="comp-metric-card">
+                            <span class="label">OSI Peak Location</span>
+                            <span class="value">N/A</span>
+                        </div>
+                        <div class="comp-metric-card">
+                            <span class="label">Pressure Drop (CFD/PINN)</span>
+                            <span class="value">5.2 / 5.0 Pa</span>
+                        </div>
+                        <div class="comp-metric-card">
+                            <span class="label">Area Reduction %</span>
+                            <span class="value">0.0%</span>
+                        </div>
+                    </div>
+
+                    <!-- Stenosis Column -->
+                    <div class="comp-col">
+                        <div class="comp-col-header stenosis">Single Stenosis</div>
+                        <div class="comp-metric-card">
+                            <span class="label">Peak Velocity</span>
+                            <span class="value">0.45 m/s</span>
+                        </div>
+                        <div class="comp-metric-card">
+                            <span class="label">Max WSS (CFD/PINN)</span>
+                            <span class="value">1.95 / 1.72 Pa</span>
+                        </div>
+                        <div class="comp-metric-card">
+                            <span class="label">Peak OSI (CFD/PINN)</span>
+                            <span class="value">0.49 / 0.45</span>
+                        </div>
+                        <div class="comp-metric-card">
+                            <span class="label">OSI Peak Location</span>
+                            <span class="value">64.0 mm (Post-throat)</span>
+                        </div>
+                        <div class="comp-metric-card">
+                            <span class="label">Pressure Drop (CFD/PINN)</span>
+                            <span class="value">94.5 / 82.1 Pa</span>
+                        </div>
+                        <div class="comp-metric-card">
+                            <span class="label">Area Reduction %</span>
+                            <span class="value">84.0% (60% diam)</span>
+                        </div>
+                    </div>
+
+                    <!-- Aneurysm Column -->
+                    <div class="comp-col">
+                        <div class="comp-col-header aneurysm">Saccular Aneurysm</div>
+                        <div class="comp-metric-card">
+                            <span class="label">Peak Velocity</span>
+                            <span class="value">0.08 m/s</span>
+                        </div>
+                        <div class="comp-metric-card">
+                            <span class="label">Max WSS (CFD/PINN)</span>
+                            <span class="value">0.12 / 0.15 Pa</span>
+                        </div>
+                        <div class="comp-metric-card">
+                            <span class="label">Peak OSI (CFD/PINN)</span>
+                            <span class="value">0.38 / 0.32</span>
+                        </div>
+                        <div class="comp-metric-card">
+                            <span class="label">OSI Peak Location</span>
+                            <span class="value">55.0 mm (Neck)</span>
+                        </div>
+                        <div class="comp-metric-card">
+                            <span class="label">Pressure Drop (CFD/PINN)</span>
+                            <span class="value">2.8 / 3.1 Pa</span>
+                        </div>
+                        <div class="comp-metric-card">
+                            <span class="label">Area Reduction %</span>
+                            <span class="value">-156.0% (Dilation)</span>
+                        </div>
+                    </div>
+
+                    <!-- Tandem Stenosis Column -->
+                    <div class="comp-col">
+                        <div class="comp-col-header tandem">Tandem Stenosis</div>
+                        <div class="comp-metric-card">
+                            <span class="label">Peak Velocity</span>
+                            <span class="value">0.38 m/s</span>
+                        </div>
+                        <div class="comp-metric-card">
+                            <span class="label">Max WSS (CFD/PINN)</span>
+                            <span class="value">1.54 / 1.41 Pa</span>
+                        </div>
+                        <div class="comp-metric-card">
+                            <span class="label">Peak OSI (CFD/PINN)</span>
+                            <span class="value">0.46 / 0.41</span>
+                        </div>
+                        <div class="comp-metric-card">
+                            <span class="label">OSI Peak Location</span>
+                            <span class="value">42.0 mm &amp; 62.0 mm</span>
+                        </div>
+                        <div class="comp-metric-card">
+                            <span class="label">Pressure Drop (CFD/PINN)</span>
+                            <span class="value">124.2 / 110.5 Pa</span>
+                        </div>
+                        <div class="comp-metric-card">
+                            <span class="label">Area Reduction %</span>
+                            <span class="value">75.0% / 51.0% (Bumps)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Sidebar: Metrics Compare & Benchmark Table -->
+        <aside class="sidebar">
+            <div class="glass-panel">
+                <h2>Real-Time Diagnostics</h2>
+                <div class="metrics-grid">
+                    <div class="metric-widget">
+                        <span class="label">Pressure Drop</span>
+                        <span class="value" id="diag-pressure-drop">0.0 Pa</span>
+                    </div>
+                    <div class="metric-widget">
+                        <span class="label">Recirc. Fraction</span>
+                        <span class="value" id="diag-recirc">0.0%</span>
+                    </div>
+                    <div class="metric-widget" style="grid-column: 1 / -1;">
+                        <span class="label">Sim Time</span>
+                        <span class="value" id="diag-time" style="font-family: 'JetBrains Mono', monospace;">0.000 s</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-panel">
+                <h2>Clinical Benchmark</h2>
+                <div id="compare-container" style="font-size: 0.72rem; display: flex; flex-direction: column; gap: 8px;">
+                    <div>Comparing numerical validation vs PINN surrogate:</div>
+                    <div class="metrics-grid">
+                        <div class="metric-widget">
+                            <span class="label">CFD Max WSS</span>
+                            <span class="value" id="comp-cfd-wss" style="font-size: 0.9rem;">-- Pa</span>
+                        </div>
+                        <div class="metric-widget">
+                            <span class="label">PINN Max WSS</span>
+                            <span class="value" id="comp-pinn-wss" style="font-size: 0.9rem;">-- Pa</span>
+                        </div>
+                        <div class="metric-widget">
+                            <span class="label">CFD Max OSI</span>
+                            <span class="value" id="comp-cfd-osi" style="font-size: 0.9rem;">--</span>
+                        </div>
+                        <div class="metric-widget">
+                            <span class="label">PINN Max OSI</span>
+                            <span class="value" id="comp-pinn-osi" style="font-size: 0.9rem;">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-panel">
+                <h2>Simulation Engine Benchmark</h2>
+                <table id="table-benchmark">
+                    <thead>
+                        <tr>
+                            <th>Mode</th>
+                            <th>Time/Frame</th>
+                            <th>FPS</th>
+                            <th>Speedup</th>
+                            <th>L2 Err</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div>&copy; 2026 HaemoSim Research Team</div>
+        <div>Educational Benchmark Platform. Simplified 2D fluid assumptions apply.</div>
+    </footer>
+
+    <script>
+        const isFileProtocol = !window.location.origin || window.location.origin.startsWith('file') || window.location.origin === 'null';
+        const API_URL = isFileProtocol ? "http://localhost:8000" : window.location.origin;
+        const WS_URL = isFileProtocol ? "ws://localhost:8000/stream" : `ws://${window.location.host}/stream`;
+
+        let socket = null;
+        let activeMode = "cfd";
+        let isFluidGrid = null;
+        let radiusMap = null;
+        const ds_Nx = 48;
+        const ds_Ny = 32;
+
+        // Three.js Setup
+        const container = document.getElementById('three-canvas');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x080b11);
+
+        const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+        camera.position.z = 6;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(renderer.domElement);
+
+        // 3D Cylinder Vessel representation
+        const tubeNx = 192;
+        const tubeNtheta = 32;
+        const numVertices = tubeNx * (tubeNtheta + 1);
+        const numIndices = (tubeNx - 1) * tubeNtheta * 6;
+
+        const tubeGeometry = new THREE.BufferGeometry();
+        const tubePositions = new Float32Array(numVertices * 3);
+        const tubeColors = new Float32Array(numVertices * 3);
+        const tubeIndices = [];
+
+        // Build index buffer once
+        for (let i = 0; i < tubeNx - 1; i++) {
+            for (let j = 0; j < tubeNtheta; j++) {
+                let p00 = i * (tubeNtheta + 1) + j;
+                let p10 = (i + 1) * (tubeNtheta + 1) + j;
+                let p01 = i * (tubeNtheta + 1) + (j + 1);
+                let p11 = (i + 1) * (tubeNtheta + 1) + (j + 1);
+
+                tubeIndices.push(p00, p10, p01);
+                tubeIndices.push(p10, p11, p01);
+            }
+        }
+
+        tubeGeometry.setIndex(tubeIndices);
+        tubeGeometry.setAttribute('position', new THREE.BufferAttribute(tubePositions, 3));
+        tubeGeometry.setAttribute('color', new THREE.BufferAttribute(tubeColors, 3));
+
+        // Initialize tube positions and colors as a healthy artery
+        for (let i = 0; i < tubeNx; i++) {
+            let x = -4.0 + 8.0 * (i / (tubeNx - 1));
+            let r_visual = 1.0;
+            for (let j = 0; j <= tubeNtheta; j++) {
+                let theta = 2.0 * Math.PI * (j / tubeNtheta);
+                let idx = i * (tubeNtheta + 1) + j;
+                tubePositions[idx * 3] = x;
+                tubePositions[idx * 3 + 1] = r_visual * Math.cos(theta);
+                tubePositions[idx * 3 + 2] = r_visual * Math.sin(theta);
+                
+                tubeColors[idx * 3] = 0.15;
+                tubeColors[idx * 3 + 1] = 0.2;
+                tubeColors[idx * 3 + 2] = 0.6;
+            }
+        }
+
+        const tubeMaterial = new THREE.MeshPhongMaterial({
+            vertexColors: true,
+            shininess: 80,
+            transparent: true,
+            opacity: 0.45,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+            blending: THREE.NormalBlending
+        });
+
+        const tubeMesh = new THREE.Mesh(tubeGeometry, tubeMaterial);
+        tubeMesh.rotation.x = 0.2;
+        tubeMesh.rotation.y = 0.1;
+        scene.add(tubeMesh);
+
+        // Lighting setup
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight1.position.set(5, 10, 7);
+        scene.add(dirLight1);
+
+        const dirLight2 = new THREE.DirectionalLight(0x3b82f6, 0.5);
+        dirLight2.position.set(-5, -5, 5);
+        scene.add(dirLight2);
+
+        // Drag to rotate interaction
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+
+        container.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+        });
+
+        container.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const deltaMove = {
+                x: e.clientX - previousMousePosition.x,
+                y: e.clientY - previousMousePosition.y
+            };
+
+            tubeMesh.rotation.y += deltaMove.x * 0.005;
+            tubeMesh.rotation.x += deltaMove.y * 0.005;
+
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        // Trace streamlines particles in 3D
+        const particleCount = 200;
+        const particleGeom = new THREE.BufferGeometry();
+        const particlePos = new Float32Array(particleCount * 3);
+        const particleColors = new Float32Array(particleCount * 3);
+        const particles = [];
+
+        // Initialize particles at random positions inside 3D space
+        for (let i = 0; i < particleCount; i++) {
+            let px = -4.0 + Math.random() * 8.0;
+            let theta = Math.random() * Math.PI * 2;
+            let r = (Math.random() - 0.5) * 0.8;
+            particles.push({ x: px, r: r, theta: theta });
+            
+            particlePos[i * 3] = px;
+            particlePos[i * 3 + 1] = r * Math.cos(theta);
+            particlePos[i * 3 + 2] = r * Math.sin(theta);
+
+            particleColors[i * 3] = 1.0;
+            particleColors[i * 3 + 1] = 1.0;
+            particleColors[i * 3 + 2] = 1.0;
+        }
+
+        particleGeom.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));
+        particleGeom.setAttribute('color', new THREE.BufferAttribute(particleColors, 3));
+
+        const particleMat = new THREE.PointsMaterial({
+            size: 0.045,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.95
+        });
+        const traceParticles = new THREE.Points(particleGeom, particleMat);
+        // Add particles to tubeMesh so they rotate together!
+        tubeMesh.add(traceParticles);
+
+        // Local copy of velocity fields for particle advection
+        let currentU = new Array(ds_Nx).fill(0).map(() => new Array(ds_Ny).fill(0));
+        let currentV = new Array(ds_Nx).fill(0).map(() => new Array(ds_Ny).fill(0));
+
+        // Handle resizing
+        window.addEventListener('resize', () => {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+
+        // Initialize Labels
+        function updateSeverityLabel() {
+            const vType = document.getElementById("select-vessel").value;
+            const val = parseFloat(document.getElementById("input-severity").value);
+            const severityLabel = document.getElementById("val-severity");
+            
+            if (vType === "aneurysm") {
+                severityLabel.innerText = `${Math.round(val * 100)}% expansion`;
+            } else {
+                severityLabel.innerText = `${Math.round(val * 100)}% stenosis`;
+            }
+        }
+
+        function updateHeartrateLabel() {
+            const val = document.getElementById("input-heartrate").value;
+            document.getElementById("val-heartrate").innerText = `${val} BPM`;
+        }
+
+        // Configure Simulation Parameters via REST
+        async function configureSim() {
+            const vessel_type = document.getElementById("select-vessel").value;
+            const severity = parseFloat(document.getElementById("input-severity").value);
+            const heart_rate = parseFloat(document.getElementById("input-heartrate").value);
+            
+            // Adjust slider range labels
+            const sevContainer = document.getElementById("severity-container");
+            if (vessel_type === "healthy" || vessel_type === "tandem_stenosis") {
+                sevContainer.style.opacity = "0.4";
+                sevContainer.style.pointerEvents = "none";
+            } else {
+                sevContainer.style.opacity = "1.0";
+                sevContainer.style.pointerEvents = "auto";
+            }
+            updateSeverityLabel();
+            
+            try {
+                const response = await fetch(`${API_URL}/configure`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vessel_type, severity, heart_rate })
+                });
+                const data = await response.json();
+                
+                // Update metrics labels
+                document.getElementById("metric-diam-sten").innerText = `${data.diameter_stenosis_percent.toFixed(1)}%`;
+                document.getElementById("metric-area-sten").innerText = `${data.area_stenosis_percent.toFixed(1)}%`;
+                
+                // Fetch static compared metrics for this type
+                fetchCompareMetrics(vessel_type);
+            } catch (err) {
+                console.error("Configuration error: ", err);
+            }
+        }
+
+        // Toggle Engine Mode (CFD or PINN)
+        async function setEngineMode(mode) {
+            try {
+                const response = await fetch(`${API_URL}/mode`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mode })
+                });
+                const data = await response.json();
+                if (data.status === "success") {
+                    activeMode = mode;
+                    document.getElementById("btn-cfd").classList.toggle("active", mode === "cfd");
+                    document.getElementById("btn-pinn").classList.toggle("active", mode === "pinn");
+                    document.getElementById("btn-hybrid").classList.toggle("active", mode === "hybrid");
+                    document.getElementById("legend-mode").innerText = `Mode: ${mode.toUpperCase()}`;
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                console.error("Mode switch error: ", err);
+            }
+        }
+
+        // Fetch Benchmark summary list
+        async function fetchBenchmarkData() {
+            try {
+                const response = await fetch(`${API_URL}/benchmark`);
+                const data = await response.json();
+                const tbody = document.querySelector("#table-benchmark tbody");
+                tbody.innerHTML = "";
+                data.forEach(row => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td>${row.severity}</td>
+                        <td>${row.cfd_time}</td>
+                        <td>${row.pinn_time}</td>
+                        <td style="color: var(--accent-green); font-weight: bold;">${row.speedup}</td>
+                        <td>${row.vel_error}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                console.error("Benchmark data fetch error: ", err);
+            }
+        }
+
+        // Fetch metrics compare values
+        async function fetchCompareMetrics(vesselType) {
+            try {
+                const response = await fetch(`${API_URL}/metrics/compare?vessel_type=${vesselType}`);
+                const data = await response.json();
+                
+                document.getElementById("comp-cfd-wss").innerText = `${data.cfd_wss_max.toFixed(2)} Pa`;
+                document.getElementById("comp-pinn-wss").innerText = `${data.pinn_wss_max.toFixed(2)} Pa`;
+                document.getElementById("comp-cfd-osi").innerText = `${data.cfd_osi_max.toFixed(2)}`;
+                document.getElementById("comp-pinn-osi").innerText = `${data.pinn_osi_max.toFixed(2)}`;
+            } catch (err) {
+                console.error("Compare metrics fetch error: ", err);
+            }
+        }
+
+        // Connect WebSocket stream
+        function connectStream() {
+            socket = new WebSocket(WS_URL);
+            
+            socket.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                
+                // Parse downsampled velocity and pressure grids
+                currentU = data.u;
+                currentV = data.v;
+                
+                const pGrid = data.p;
+                isFluidGrid = data.is_fluid;
+                radiusMap = data.radius_map;
+                
+                // Update 3D Tube geometry and colors
+                update3DTube(radiusMap, data.wss_top, data.wss_bottom);
+                
+                // Update Canvas plots
+                drawCanvasPlot("canvas-wss", "Wall Shear Stress (Pa)", data.wss_top, data.wss_bottom, 2.0);
+                drawCanvasPlot("canvas-osi", "Oscillatory Shear Index (OSI)", data.osi_top, data.osi_bottom, 0.5);
+                
+                // Update diagnostics labels
+                document.getElementById("diag-pressure-drop").innerText = `${data.pressure_drop.toFixed(1)} Pa`;
+                document.getElementById("diag-recirc").innerText = `${(data.recirculation_fraction * 100).toFixed(1)}%`;
+                document.getElementById("diag-time").innerText = `${data.sim_time.toFixed(3)} s`;
+            };
+            
+            socket.onclose = function() {
+                console.log("WebSocket disconnected. Retrying in 3s...");
+                setTimeout(connectStream, 3000);
+            };
+        }
+
+        // Draw dynamic 3D tube geometry and colors based on radius map and WSS
+        function update3DTube(radMap, wssTop, wssBottom) {
+            if (!radMap || !wssTop || !wssBottom) return;
+            
+            const posAttr = tubeMesh.geometry.attributes.position;
+            const colAttr = tubeMesh.geometry.attributes.color;
+            const positionsArr = posAttr.array;
+            const colorsArr = colAttr.array;
+            
+            const Nx_map = radMap.length;
+            
+            for (let i = 0; i < tubeNx; i++) {
+                let mapIdx = Math.floor(i * (Nx_map - 1) / (tubeNx - 1));
+                let r = radMap[mapIdx];
+                let r_visual = r / 0.004;
+                
+                let x = -4.0 + 8.0 * (i / (tubeNx - 1));
+                
+                let wTop = Math.abs(wssTop[mapIdx]);
+                let wBottom = Math.abs(wssBottom[mapIdx]);
+                
+                for (let j = 0; j <= tubeNtheta; j++) {
+                    let theta = 2.0 * Math.PI * (j / tubeNtheta);
+                    let idx = i * (tubeNtheta + 1) + j;
+                    
+                    positionsArr[idx * 3] = x;
+                    positionsArr[idx * 3 + 1] = r_visual * Math.cos(theta);
+                    positionsArr[idx * 3 + 2] = r_visual * Math.sin(theta);
+                    
+                    let sinT = Math.sin(theta);
+                    let weight = (sinT + 1.0) / 2.0;
+                    let wssVal = (1.0 - weight) * wBottom + weight * wTop;
+                    
+                    let normWSS = Math.min(wssVal / 2.5, 1.0);
+                    
+                    // Dark tech styling: Purple/Deep Blue to Magenta
+                    colorsArr[idx * 3] = 0.15 + 0.85 * normWSS;
+                    colorsArr[idx * 3 + 1] = 0.2 * (1.0 - normWSS);
+                    colorsArr[idx * 3 + 2] = 0.6 + 0.4 * (1.0 - normWSS);
+                }
+            }
+            
+            posAttr.needsUpdate = true;
+            colAttr.needsUpdate = true;
+            
+            tubeMesh.geometry.computeVertexNormals();
+        }
+
+        // Lightweight HTML Canvas Charting
+        function drawCanvasPlot(canvasId, label, topData, bottomData, maxVal) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            
+            // Adjust canvas size dynamically for high DPI
+            if (canvas.width !== canvas.clientWidth) {
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+            }
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Background
+            ctx.fillStyle = '#06080d';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw horizontal grid lines
+            ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+            ctx.lineWidth = 1;
+            for (let y = canvas.height / 4; y < canvas.height; y += canvas.height / 4) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+            
+            // Plot top wall (Red)
+            ctx.strokeStyle = '#f87171';
+            ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            for (let i = 0; i < topData.length; i++) {
+                let x = (i / (topData.length - 1)) * canvas.width;
+                let y = canvas.height - (Math.max(topData[i], 0) / maxVal) * (canvas.height - 20) - 10;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            
+            // Plot bottom wall (Blue)
+            ctx.strokeStyle = '#60a5fa';
+            ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            for (let i = 0; i < bottomData.length; i++) {
+                let x = (i / (bottomData.length - 1)) * canvas.width;
+                let y = canvas.height - (Math.max(bottomData[i], 0) / maxVal) * (canvas.height - 20) - 10;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            
+            // Text values labels
+            ctx.fillStyle = '#9ca3af';
+            ctx.font = '10px "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(label, 12, 16);
+        }
+
+        // Particle advection trace animation loop
+        const clock = new THREE.Clock();
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const dt = Math.min(clock.getDelta(), 0.05); // cap step to prevent jumps
+            
+            const posAttr = traceParticles.geometry.attributes.position;
+            const arr = posAttr.array;
+            
+            const colAttr = traceParticles.geometry.attributes.color;
+            const pColors = colAttr.array;
+            
+            for (let idx = 0; idx < particleCount; idx++) {
+                let p = particles[idx];
+                
+                // Map physical particle position [-4, 4] and [-1.2, 1.2] to grid indices
+                // i in [0, 47] -> physical px in [-4, 4]
+                let i_float = (p.x + 4.0) * (47.0 / 8.0);
+                // j in [0, 31] -> physical pr in [-1.2, 1.2]
+                let j_float = (p.r + 1.2) * (31.0 / 2.4);
+                
+                let i0 = Math.floor(i_float);
+                let j0 = Math.floor(j_float);
+                
+                let uSpeed = 0.1;
+                let vSpeed = 0.0;
+                
+                if (i0 >= 0 && i0 < 47 && j0 >= 0 && j0 < 31 && isFluidGrid) {
+                    // Bilinear interpolation of velocity at particle coordinates
+                    let wi = i_float - i0;
+                    let wj = j_float - j0;
+                    
+                    let u00 = currentU[i0][j0];
+                    let u10 = currentU[i0+1][j0];
+                    let u01 = currentU[i0][j0+1];
+                    let u11 = currentU[i0+1][j0+1];
+                    uSpeed = (1-wi)*(1-wj)*u00 + wi*(1-wj)*u10 + (1-wi)*wj*u01 + wi*wj*u11;
+                    
+                    let v00 = currentV[i0][j0];
+                    let v10 = currentV[i0+1][j0];
+                    let v01 = currentV[i0][j0+1];
+                    let v11 = currentV[i0+1][j0+1];
+                    vSpeed = (1-wi)*(1-wj)*v00 + wi*(1-wj)*v10 + (1-wi)*wj*v01 + wi*wj*v11;
+                }
+                
+                // Update position using advection (scaled values for visualization)
+                p.x += uSpeed * 8.0 * dt;
+                p.r += vSpeed * 8.0 * dt;
+                
+                // Boundary collision checking or exit check
+                let outsideWall = false;
+                if (radiusMap && isFluidGrid) {
+                    let colIdx = Math.floor((p.x + 4.0) * (radMapLen() / 8.0));
+                    if (colIdx >= 0 && colIdx < radMapLen()) {
+                        let radVal = radiusMap[colIdx];
+                        let visualBoundary = radVal / 0.004;
+                        if (Math.abs(p.r) > visualBoundary) {
+                            outsideWall = true;
+                        }
+                    }
+                }
+                
+                // Reset particles if they reach outlet or go out of bounds
+                if (p.x > 4.0 || p.x < -4.0 || outsideWall) {
+                    p.x = -4.0;
+                    let radInlet = radiusMap ? radiusMap[0] / 0.004 : 1.0;
+                    p.r = (Math.random() - 0.5) * 2.0 * radInlet * 0.95; // seed inside inlet boundary
+                    p.theta = Math.random() * Math.PI * 2;
+                }
+                
+                // Set positions in the buffer array
+                arr[idx * 3] = p.x;
+                arr[idx * 3 + 1] = p.r * Math.cos(p.theta);
+                arr[idx * 3 + 2] = p.r * Math.sin(p.theta);
+                
+                // Set colors based on velocity magnitude / recirculation
+                let pColorIdx = idx * 3;
+                if (uSpeed < 0) {
+                    // Recirculation - red
+                    pColors[pColorIdx] = 0.97;
+                    pColors[pColorIdx + 1] = 0.22;
+                    pColors[pColorIdx + 2] = 0.22;
+                } else {
+                    // Normal flow - gradient from deep blue to bright white/cyan
+                    let velocityMag = Math.sqrt(uSpeed * uSpeed + vSpeed * vSpeed);
+                    let normVel = Math.min(velocityMag / 0.15, 1.0);
+                    pColors[pColorIdx] = 0.4 + 0.6 * normVel;
+                    pColors[pColorIdx + 1] = 0.7 + 0.3 * normVel;
+                    pColors[pColorIdx + 2] = 1.0;
+                }
+            }
+            
+            posAttr.needsUpdate = true;
+            colAttr.needsUpdate = true;
+            
+            renderer.render(scene, camera);
+        }
+
+        function radMapLen() {
+            return radiusMap ? radiusMap.length : 192;
+        }
+
+        function switchWorkspaceTab(tab) {
+            const simView = document.getElementById('sim-view');
+            const comparePanel = document.getElementById('compare-panel');
+            
+            document.getElementById('tab-sim').classList.toggle('active', tab === 'sim');
+            document.getElementById('tab-compare').classList.toggle('active', tab === 'compare');
+            
+            if (tab === 'sim') {
+                simView.style.display = 'grid';
+                comparePanel.style.display = 'none';
+                setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+            } else {
+                simView.style.display = 'none';
+                comparePanel.style.display = 'flex';
+            }
+        }
+
+        // Page Load Inits
+        window.onload = function() {
+            configureSim();
+            fetchBenchmarkData();
+            connectStream();
+            animate();
+        };
+    </script>
+</body>
+</html>
